@@ -1,10 +1,10 @@
 # Copyright (C) 2020, Inria
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
-# 
-# This software is free for non-commercial, research and evaluation use 
+#
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
-# 
+#
 # For inquiries contact sibr@inria.fr and/or George.Drettakis@inria.fr
 
 
@@ -21,15 +21,13 @@ Usage: python colmap2sibr.py --path <path to dataset> [required]
 
 """
 
-import os, sys
 import argparse
-import os, sys, getopt
-import re
-from utils.commands import getProcess
-from utils.paths import getBinariesPath
-from utils.commands import runCommand
+import os
 import subprocess
+import sys
 from pathlib import Path
+
+from utils.commands import getProcess
 
 
 def checkColmapConsistent(pathdir):
@@ -55,16 +53,16 @@ def main():
 
     args = vars(parser.parse_args())
 
-    if not checkColmapConsistent(args['path']):
+    if not checkColmapConsistent(args["path"]):
         print("SIBR_ERROR Colmap hasnt been run properly; run it first (ie dont use --noColmap)")
         sys.exit(1)
 
 	# prepareColmap4Sibr: convert cameras and create bundle file put everything in sfm_mvs_cm, then run the normal preprocessing
-    # 
+    #
     prepareColmap_app = getProcess("prepareColmap4Sibr")
-    
+
     prepareColmap_args = [prepareColmap_app,
-        "--path", args['path'],
+        "--path", args["path"],
         ]
 
     print("Running prepareColmap4Sibr ", prepareColmap_args)
@@ -74,16 +72,16 @@ def main():
         sys.exit(1)
 
 	# run rc_to_sibr process to make all images have the same size and be compatible with spixelwarp pipeline
-    p_exit = subprocess.call(["python", "ibr_preprocess_rc_to_sibr.py",  "-i", args['path']+"/sfm_mvs_cm",  "-o", args['path']+"/sibr_cm"])
+    p_exit = subprocess.call(["python", "ibr_preprocess_rc_to_sibr.py",  "-i", args["path"]+"/sfm_mvs_cm",  "-o", args["path"]+"/sibr_cm"])
     if p_exit != 0:
-        print("SIBR_ERROR preprocess to sibr_cm failed");
+        print("SIBR_ERROR preprocess to sibr_cm failed")
         sys.exit(1)
 
     prepareColmap_app = getProcess("prepareColmap4Sibr")
-    
+
     prepareColmap_args = [prepareColmap_app,
-		"--fix_metadata", 
-        "--path", args['path'],
+		"--fix_metadata",
+        "--path", args["path"],
         ]
 
     print("Running prepareColmap4Sibr to fix scene_dataset.txt ", prepareColmap_args)

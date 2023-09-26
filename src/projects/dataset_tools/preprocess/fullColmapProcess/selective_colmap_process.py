@@ -1,13 +1,11 @@
 import os
 import os.path
-import sys
-import argparse
 import shutil
 import sqlite3
-import read_write_model as rwm
-
 
 import cv2
+import read_write_model as rwm
+
 print(cv2.__version__)
 
 
@@ -35,19 +33,18 @@ def extract_images(pathIn, pathOut, videoName, maxNumFrames = -1, resize=False):
            break
         resized = image
         if resize :
-            #print('Original Dimensions : ',image.shape)
             scale_percent = 52 # percent of original size
             width = int(image.shape[1] * scale_percent / 100)
             height = int(image.shape[0] * scale_percent / 100)
             dim = (width, height)
             resized = cv2.resize(image, dim, interpolation = cv2.INTER_AREA)
 
-        print( "Writing: frame # ", EVERY_NTH*frame, " " , pathOut + "\\%s\\frame%04d.png" % (videoName, count))     
-        fileNames.append("%s\\frame%04d.png" % (videoName, count))     
+        print( "Writing: frame # ", EVERY_NTH*frame, " " , pathOut + "\\%s\\frame%04d.png" % (videoName, count))
+        fileNames.append("%s\\frame%04d.png" % (videoName, count))
         cv2.imwrite( pathOut + "\\%s\\frame%04d.png" % (videoName, count), resized)     # save frame as PNG file
- 
+
         if maxNumFrames == count:
-           break;
+           break
 
         count = count + 1
 
@@ -79,23 +76,23 @@ def extract_images_with_name(imageName, images_data, new_images_data):
 def remove_lines_from_file(fname, match, nextDel=False):
     newdata = []
     prevMatch = False
-    with open(fname, 'r') as imagesfile:
+    with open(fname) as imagesfile:
         data = imagesfile.read().splitlines()
     for line in data:
         if match in line:
            if nextDel:
               prevMatch = True
-        elif (not match in line) and (not prevMatch):
+        elif (match not in line) and (not prevMatch):
            newdata.append(line)
            prevMatch = False
         else:
            prevMatch = False
 
     # overwrite
-    with open(fname, 'w') as outfile:
+    with open(fname, "w") as outfile:
          for line in newdata:
             outfile.write(line + "\n")
-    
+
 
 
 def remove_video_images(path, photoName="MG_"):
@@ -123,7 +120,7 @@ def remove_video_images(path, photoName="MG_"):
        shutil.copyfile(cameras_fname, backup_cameras)
 
    # extract photos only for images.txt
-   with open(images_fname, 'r') as imagesfile:
+   with open(images_fname) as imagesfile:
        images_data = imagesfile.read().splitlines()
 
    videoDirList = []
@@ -137,12 +134,12 @@ def remove_video_images(path, photoName="MG_"):
 
    # remaining images
    print("Remaining images ", img_cnt)
-   
-   new_images_data[3] = ' '.join(images_data[3].split()[0:4]) + " " + str(img_cnt) +" " +  ' '.join(images_data[3].split()[5:-1] )
+
+   new_images_data[3] = " ".join(images_data[3].split()[0:4]) + " " + str(img_cnt) +" " +  " ".join(images_data[3].split()[5:-1] )
 
    # overwrite current calibration
    dstpath = os.path.abspath(os.path.join(path, "colmap\\sparse"))
-   with open(dstpath+"\\images.txt", 'w') as outfile:
+   with open(dstpath+"\\images.txt", "w") as outfile:
      for line in new_images_data:
        outfile.write(str(line) + "\n")
 
@@ -157,14 +154,14 @@ def remove_video_images(path, photoName="MG_"):
    db = sqlite3.connect(oldb)
    cursor = db.cursor()
    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-   tables = cursor.fetchall()
+   cursor.fetchall()
    # debug
    delImagesQuery = """DELETE from images WHERE name LIKE '%Video%'"""
    cursor.execute(delImagesQuery)
 
    db.commit()
 
-   # write out database 
+   # write out database
    db.close()
 
    # create GT path directories
@@ -196,13 +193,13 @@ def remove_video_images(path, photoName="MG_"):
 
       video_images_list = []
       video_images_list, img_cnt = extract_images_with_name(currVideoName, images_data, video_images_list)
-      video_images_list[2] = ' '.join(images_data[2].split()[0:4]) + " " + str(img_cnt) +" " +  ' '.join(images_data[2].split()[5:-1] )
+      video_images_list[2] = " ".join(images_data[2].split()[0:4]) + " " + str(img_cnt) +" " +  " ".join(images_data[2].split()[5:-1] )
 
       # create colmap data
       dstpath = os.path.abspath(os.path.join(curr_GTpath_dir, "text"))
       os.makedirs(dstpath)
 
-      with open(dstpath+"\\images.txt", 'w') as outfile:
+      with open(dstpath+"\\images.txt", "w") as outfile:
          for line in video_images_list:
            outfile.write(str(line) + "\n")
 
@@ -212,9 +209,9 @@ def remove_video_images(path, photoName="MG_"):
       points_fname = os.path.abspath(os.path.join(path, "colmap\\sparse\\")) + "\\points3D.txt"
       shutil.copyfile(points_fname, dstpath+"\\points3D.txt")
 
-      fname = os.path.abspath(os.path.join(path, "colmap\\stereo\\stereo\\fusion.cfg")) 
+      fname = os.path.abspath(os.path.join(path, "colmap\\stereo\\stereo\\fusion.cfg"))
       remove_lines_from_file(fname, "Video", False)
-      fname = os.path.abspath(os.path.join(path, "colmap\\stereo\\stereo\\patch-match.cfg")) 
+      fname = os.path.abspath(os.path.join(path, "colmap\\stereo\\stereo\\patch-match.cfg"))
       remove_lines_from_file(fname, "Video", True)
       # all done
 
@@ -227,12 +224,12 @@ def fix_cameras(path, photoName="MG_", sparseSubdir=""):
 
     # Read images.txt
     images_fname = os.path.abspath(os.path.join(path, sparse_subdir)) + "\\images.txt"
-    with open(images_fname, 'r') as imagesfile:
+    with open(images_fname) as imagesfile:
         images_data = imagesfile.read().splitlines()
 
     # Read cameras.txt
     cameras_fname = os.path.abspath(os.path.join(path, sparse_subdir)) + "\\cameras.txt"
-    with open(cameras_fname, 'r') as camerasfile:
+    with open(cameras_fname) as camerasfile:
         cameras_data = camerasfile.read().splitlines()
 
     # find the first camera index for a photo
@@ -257,7 +254,7 @@ def fix_cameras(path, photoName="MG_", sparseSubdir=""):
     dstpath = os.path.join(path, "backups\\")
     if not os.path.exists(dstpath):
        os.makedirs(dstpath, exist_ok=True)
-    # 
+    #
     dstpath = os.path.join(path, "backups\\orig\\")
     if not os.path.exists(dstpath):
        os.makedirs(dstpath, exist_ok=True)
@@ -279,19 +276,18 @@ def fix_cameras(path, photoName="MG_", sparseSubdir=""):
         db = sqlite3.connect(oldb)
         cursor = db.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = cursor.fetchall()
+        cursor.fetchall()
         # debug
-        #  table = pd.read_sql_query("SELECT * from %s" % 'images', db)
 
         # delete all cameras except videoCamEntry and photoCamEntry from database
-        delCamQuery = """DELETE from cameras WHERE camera_id != '%s' and camera_id != '%s'""" % (videoCamIndex, photoCamIndex)
+        delCamQuery = """DELETE from cameras WHERE camera_id != '{}' and camera_id != '{}'""".format(videoCamIndex, photoCamIndex)
         cursor.execute(delCamQuery )
 
         # change photo cam id to 1 and video cam id to 2
-        setQuery = "UPDATE cameras SET camera_id = '%s' WHERE  camera_id = '%s'" % ("1", photoCamIndex)
+        setQuery = "UPDATE cameras SET camera_id = '{}' WHERE  camera_id = '{}'".format("1", photoCamIndex)
         cursor.execute(setQuery)
 
-        setQuery = "UPDATE cameras SET camera_id = '%s' WHERE  camera_id = '%s'" % ("2", videoCamIndex)
+        setQuery = "UPDATE cameras SET camera_id = '{}' WHERE  camera_id = '{}'".format("2", videoCamIndex)
         cursor.execute(setQuery)
 
         # change photo cam id to 1 for all images of photos
@@ -306,17 +302,17 @@ def fix_cameras(path, photoName="MG_", sparseSubdir=""):
 
         # write out database ; next step re-exports the result to TXT and BIN
         db.close()
-      
+
     # replace all camera indices in images.txt
     new_images_data = images_data
     cnt = 0
     for line in new_images_data:
         if line.split():
             if photoName in line.split()[-1]:
-               new_images_data[cnt] = ' '.join(line.split()[0:-2]) + " 1 " + line.split()[-1] 
+               new_images_data[cnt] = " ".join(line.split()[0:-2]) + " 1 " + line.split()[-1]
                print("replace ", line.split()[0],  " by 1 in ", new_images_data[cnt] )
             elif "Video" in line.split()[-1]:
-               new_images_data[cnt] = ' '.join(line.split()[0:-2]) + " 2 " + line.split()[-1] 
+               new_images_data[cnt] = " ".join(line.split()[0:-2]) + " 2 " + line.split()[-1]
 
         cnt = cnt + 1
 
@@ -324,14 +320,14 @@ def fix_cameras(path, photoName="MG_", sparseSubdir=""):
     for line in cameras_data:
         if line.split():
             if photoCamIndex == line.split()[0]:
-              photoCamEntry = "1 " + ' '.join(line.split()[1:])
+              photoCamEntry = "1 " + " ".join(line.split()[1:])
             if videoCamIndex == line.split()[0]:
-              videoCamEntry = "2 " + ' '.join(line.split()[1:])
+              videoCamEntry = "2 " + " ".join(line.split()[1:])
 
     # create two element camera file one for photos one for video
     dstpath = os.path.abspath(os.path.join(path, "colmap\\sparse\\"))
     dst = dstpath + "\\cameras_two.txt"
-    with open(dst, 'w') as outfile:
+    with open(dst, "w") as outfile:
         outfile.write(photoCamEntry + "\n")
         if( videoCamEntry != "" ):
             outfile.write(videoCamEntry + "\n")
@@ -339,7 +335,7 @@ def fix_cameras(path, photoName="MG_", sparseSubdir=""):
 
     # write out new file
     dst = dstpath + "\\images_two.txt"
-    with open(dst, 'w') as outfile:
+    with open(dst, "w") as outfile:
          for line in new_images_data:
             outfile.write(line + "\n")
     outfile.close()
@@ -376,14 +372,12 @@ def extract_video_frames(pathIn, pathOut):
     fileNames = []
     for filename in os.listdir(pathIn):
       if ("MP4" in filename) or ("mp4" in filename):
-        with open(os.path.join(pathIn, filename), 'r') as f:
+        with open(os.path.join(pathIn, filename)) as f:
           print("Extracting Video from File: ", f.name)
-#          fileNames  = fileNames + extract_images(f.name, pathOut, "Video%d" % cnt, maxNumFrames=3, resize=True)
           fileNames  = fileNames + extract_images(f.name, pathOut, "Video%d" % cnt, resize=True)
-#          extract_images(f.name, pathOut, videoName="Video%d" % cnt)
           cnt = cnt+1
 
-    with open(os.path.dirname(pathIn) + "\\videos\\Video_Frames.txt", 'w') as f:
+    with open(os.path.dirname(pathIn) + "\\videos\\Video_Frames.txt", "w") as f:
        for item in fileNames:
           f.write("%s\n" % item.replace("\\", "/"))
        f.close()

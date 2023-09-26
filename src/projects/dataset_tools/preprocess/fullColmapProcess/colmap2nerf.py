@@ -9,16 +9,17 @@
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
 import argparse
-import os
-from pathlib import Path, PurePosixPath
-
-import numpy as np
+import contextlib
 import json
-import sys
 import math
-import cv2
 import os
 import shutil
+import sys
+from pathlib import Path
+
+import cv2
+import numpy as np
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="convert a text colmap export to nerf format transforms.json; optionally convert video to images, and optionally run colmap in the first place")
@@ -34,8 +35,7 @@ def parse_args():
     parser.add_argument("--skip_early", default=0, help="skip this many images from the start")
     parser.add_argument("--out", default="transforms.json", help="output path")
     parser.add_argument("--path", default="", help="top level dataset")
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def do_system(arg):
     print(f"==== running: {arg}")
@@ -54,12 +54,10 @@ def run_ffmpeg(args):
     print(f"running ffmpeg with input video file={video}, output image folder={images}, fps={fps}.")
     if (input(f"warning! folder '{images}' will be deleted/replaced. continue? (Y/n)").lower().strip()+"y")[:1] != "y":
         sys.exit(1)
-    try:
+    with contextlib.suppress(Exception):
         shutil.rmtree(images)
-    except:
-        pass
     do_system(f"mkdir {images}")
-    do_system(f"ffmpeg -i {video} -qscale:v 1 -qmin 1 -vf \"fps={fps}\" {images}/%04d.jpg")
+    do_system(f'ffmpeg -i {video} -qscale:v 1 -qmin 1 -vf "fps={fps}" {images}/%04d.jpg')
 
 def run_colmap(args):
     db=args.colmap_db
@@ -77,17 +75,13 @@ def run_colmap(args):
         os.remove(db)
     do_system(f"colmap feature_extractor --ImageReader.camera_model OPENCV --ImageReader.single_camera 1 --database_path {db} --image_path {images}")
     do_system(f"colmap {args.colmap_matcher}_matcher --database_path {db}")
-    try:
+    with contextlib.suppress(Exception):
         shutil.rmtree(sparse)
-    except:
-        pass
     do_system(f"mkdir {sparse}")
     do_system(f"colmap mapper --database_path {db} --image_path {images} --output_path {sparse}")
     do_system(f"colmap bundle_adjuster --input_path {sparse}/0 --output_path {sparse}/0 --BundleAdjustment.refine_principal_point 1")
-    try:
+    with contextlib.suppress(Exception):
         shutil.rmtree(text)
-    except:
-        pass
     do_system(f"mkdir {text}")
     do_system(f"colmap model_converter --input_path {sparse}/0 --output_path {text} --output_type TXT")
 
@@ -97,24 +91,23 @@ def variance_of_laplacian(image):
 def sharpness(imagePath):
     image = cv2.imread(imagePath)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    fm = variance_of_laplacian(gray)
-    return fm
+    return variance_of_laplacian(gray)
 
 def qvec2rotmat(qvec):
     return np.array([
         [
             1 - 2 * qvec[2]**2 - 2 * qvec[3]**2,
             2 * qvec[1] * qvec[2] - 2 * qvec[0] * qvec[3],
-            2 * qvec[3] * qvec[1] + 2 * qvec[0] * qvec[2]
+            2 * qvec[3] * qvec[1] + 2 * qvec[0] * qvec[2],
         ], [
             2 * qvec[1] * qvec[2] + 2 * qvec[0] * qvec[3],
             1 - 2 * qvec[1]**2 - 2 * qvec[3]**2,
-            2 * qvec[2] * qvec[3] - 2 * qvec[0] * qvec[1]
+            2 * qvec[2] * qvec[3] - 2 * qvec[0] * qvec[1],
         ], [
             2 * qvec[3] * qvec[1] - 2 * qvec[0] * qvec[2],
             2 * qvec[2] * qvec[3] + 2 * qvec[0] * qvec[1],
-            1 - 2 * qvec[1]**2 - 2 * qvec[2]**2
-        ]
+            1 - 2 * qvec[1]**2 - 2 * qvec[2]**2,
+        ],
     ])
 
 def rotmat(a, b):
@@ -143,13 +136,13 @@ def closest_point_2_lines(oa, da, ob, db): # returns point closest to both rays 
 
 def convert(AABB_SCALE, SKIP_EARLY, IMAGE_FOLDER, TEXT_FOLDER, OUT_PATH, totp=-1, totw=-1, avglen = -1, rMat = np.array([])):
     print(f"outputting to {OUT_PATH}...")
-    with open(os.path.join(TEXT_FOLDER,"cameras.txt"), "r") as f:
+    with open(os.path.join(TEXT_FOLDER,"cameras.txt")) as f:
         angle_x=math.pi/2
         for line in f:
             # 1 SIMPLE_RADIAL 2048 1536 1580.46 1024 768 0.0045691
             # 1 OPENCV 3840 2160 3178.27 3182.09 1920 1080 0.159668 -0.231286 -0.00123982 0.00272224
             # 1 RADIAL 1920 1080 1665.1 960 540 0.0672856 -0.0761443
-            # 
+            #
             if line[0]=="#":
                 continue
             els=line.split(" ")
@@ -185,15 +178,13 @@ def convert(AABB_SCALE, SKIP_EARLY, IMAGE_FOLDER, TEXT_FOLDER, OUT_PATH, totp=-1
                 cy = float(els[7])
             else:
                 print("unknown camera model ", els[1])
-            # fl = 0.5 * w / tan(0.5 * angle_x);
             angle_x= math.atan(w/(fl_x*2))*2
             angle_y= math.atan(h/(fl_y*2))*2
-            fovx=angle_x*180/math.pi
-            fovy=angle_y*180/math.pi
+            angle_x*180/math.pi
+            angle_y*180/math.pi
 
-    #print(f"camera:\n\tres={w,h}\n\tcenter={cx,cy}\n\tfocal={fl_x,fl_y}\n\tfov={fovx,fovy}\n\tk={k1,k2} p={p1,p2} ")
 
-    with open(os.path.join(TEXT_FOLDER,"images.txt"), "r") as f:
+    with open(os.path.join(TEXT_FOLDER,"images.txt")) as f:
         i=0
         bottom = np.array([0,0,0,1.]).reshape([1,4])
         out={
@@ -209,7 +200,7 @@ def convert(AABB_SCALE, SKIP_EARLY, IMAGE_FOLDER, TEXT_FOLDER, OUT_PATH, totp=-1
             "cy":cy,
             "w":w,
             "h":h,
-            "aabb_scale":AABB_SCALE,"frames":[]
+            "aabb_scale":AABB_SCALE,"frames":[],
         }
 
         up=np.zeros(3)
@@ -222,7 +213,6 @@ def convert(AABB_SCALE, SKIP_EARLY, IMAGE_FOLDER, TEXT_FOLDER, OUT_PATH, totp=-1
                 continue
             if  i%2==1 :
                 elems=line.split(" ") # 1-4 is quat, 5-7 is trans, 9 is filename
-                #name = str(PurePosixPath(Path(IMAGE_FOLDER, elems[9])))
                 # why is this requireing a relitive path while using ^
                 image_rel = os.path.relpath(IMAGE_FOLDER)
                 name = str(f"./{image_rel}/{elems[9]}")
@@ -230,8 +220,7 @@ def convert(AABB_SCALE, SKIP_EARLY, IMAGE_FOLDER, TEXT_FOLDER, OUT_PATH, totp=-1
                     name = name + ".png"
                     print("opening ", name)
                 b=sharpness(name)
-                #print(name, "sharpness=",b)
-                image_id = int(elems[0])
+                int(elems[0])
                 qvec = np.array(tuple(map(float, elems[1:5])))
                 tvec = np.array(tuple(map(float, elems[5:8])))
                 R = qvec2rotmat(-qvec)
@@ -245,12 +234,9 @@ def convert(AABB_SCALE, SKIP_EARLY, IMAGE_FOLDER, TEXT_FOLDER, OUT_PATH, totp=-1
 
                 up += c2w[0:3,1]
 
-                #s=str(os.path.splitext(os.path.basename(elems[9]))[0])
                 s=str(os.path.basename(elems[9]))
-                #print("BASENAME ", s)
                 name = "images/"+ s # os.path.join("images", s)
                 frame={"file_path":name,"sharpness":b,"transform_matrix": c2w}
-                #print("OUTPUT ", name)
                 out["frames"].append(frame)
     nframes = len(out["frames"])
     if len(rMat) == 0:
@@ -270,7 +256,7 @@ def convert(AABB_SCALE, SKIP_EARLY, IMAGE_FOLDER, TEXT_FOLDER, OUT_PATH, totp=-1
     # find a central point they are all looking at
     print("computing center of attention...")
 
-    print("TOTP {} TOTW {}".format(totp, totw))
+    print(f"TOTP {totp} TOTW {totw}")
     if totw < 0 :
         totw=0
         totp=[0,0,0]
@@ -285,7 +271,7 @@ def convert(AABB_SCALE, SKIP_EARLY, IMAGE_FOLDER, TEXT_FOLDER, OUT_PATH, totp=-1
         if totw >0:
             totp/=totw
 
-    print("AFTER TOTP {} TOTW {}".format(totp, totw))
+    print(f"AFTER TOTP {totp} TOTW {totw}")
     print(totp) # the cameras are looking at totp
     for f in out["frames"]:
         f["transform_matrix"][0:3,3]-=totp
@@ -310,8 +296,8 @@ def convert(AABB_SCALE, SKIP_EARLY, IMAGE_FOLDER, TEXT_FOLDER, OUT_PATH, totp=-1
     return totp, totw, avglen, rMat
 
 def createNerf(path, hires=False):
-    AABB_SCALE=int(16)
-    SKIP_EARLY=int(0)
+    AABB_SCALE=16
+    SKIP_EARLY=0
     print("Path is ", path, str(path))
     if hires:
         print("DOING HIRES !!")
@@ -324,20 +310,20 @@ def createNerf(path, hires=False):
 
     totp, totw, avglen, rMat = convert(AABB_SCALE, SKIP_EARLY, IMAGE_FOLDER, TEXT_FOLDER, OUT_PATH, -1, -1, -1, np.array([]))
 
-    colmappath = os.path.join(os.path.join(str(path), "colmap_1000"), "validation_colmap") 
+    colmappath = os.path.join(os.path.join(str(path), "colmap_1000"), "validation_colmap")
     TEXT_FOLDER=os.path.join(os.path.join(colmappath,  "stereo"), "sparse")
     IMAGE_FOLDER=os.path.join(os.path.join(colmappath,  "stereo"), "images")
     OUT_PATH= os.path.join(os.path.join(colmappath,  "stereo"), "transforms.json")
     totp, totw, avglen, rMat = convert(AABB_SCALE, SKIP_EARLY, IMAGE_FOLDER, TEXT_FOLDER, OUT_PATH, totp, totw, avglen, rMat)
 
-    colmappath = os.path.join(os.path.join(str(path), "colmap_1000"), "test_path_colmap") 
+    colmappath = os.path.join(os.path.join(str(path), "colmap_1000"), "test_path_colmap")
     TEXT_FOLDER=os.path.join(os.path.join(colmappath,  "stereo"), "sparse")
     IMAGE_FOLDER=os.path.join(os.path.join(colmappath,  "stereo"), "images")
     OUT_PATH= os.path.join(os.path.join(colmappath,  "stereo"), "transforms.json")
     totp, totw, avglen, rMat = convert(AABB_SCALE, SKIP_EARLY, IMAGE_FOLDER, TEXT_FOLDER, OUT_PATH, totp, totw, avglen, rMat)
 
     # if test2_path exists
-    colmappath = os.path.join(os.path.join(str(path), "colmap_1000"), "test_path2") 
+    colmappath = os.path.join(os.path.join(str(path), "colmap_1000"), "test_path2")
 
     if os.path.exists(colmappath):
         TEXT_FOLDER=os.path.join(os.path.join(colmappath,  "stereo"), "sparse")

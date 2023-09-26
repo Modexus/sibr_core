@@ -1,16 +1,15 @@
 # Copyright (C) 2020, Inria
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
-# 
-# This software is free for non-commercial, research and evaluation use 
+#
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
-# 
+#
 # For inquiries contact sibr@inria.fr and/or George.Drettakis@inria.fr
 
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import print_function
 """
 
 get_image_size.py
@@ -39,17 +38,17 @@ class UnknownImageFormat(Exception):
 
 
 types = collections.OrderedDict()
-BMP = types['BMP'] = 'BMP'
-GIF = types['GIF'] = 'GIF'
-ICO = types['ICO'] = 'ICO'
-JPEG = types['JPEG'] = 'JPEG'
-PNG = types['PNG'] = 'PNG'
-TIFF = types['TIFF'] = 'TIFF'
+BMP = types["BMP"] = "BMP"
+GIF = types["GIF"] = "GIF"
+ICO = types["ICO"] = "ICO"
+JPEG = types["JPEG"] = "JPEG"
+PNG = types["PNG"] = "PNG"
+TIFF = types["TIFF"] = "TIFF"
 
-image_fields = ['path', 'type', 'file_size', 'width', 'height']
+image_fields = ["path", "type", "file_size", "width", "height"]
 
 
-class Image(collections.namedtuple('Image', image_fields)):
+class Image(collections.namedtuple("Image", image_fields)):
 
     def to_str_row(self):
         return ("%d\t%d\t%d\t%s\t%s" % (
@@ -57,7 +56,7 @@ class Image(collections.namedtuple('Image', image_fields)):
             self.height,
             self.file_size,
             self.type,
-            self.path.replace('\t', '\\t'),
+            self.path.replace("\t", "\\t"),
         ))
 
     def to_str_row_verbose(self):
@@ -66,7 +65,7 @@ class Image(collections.namedtuple('Image', image_fields)):
             self.height,
             self.file_size,
             self.type,
-            self.path.replace('\t', '\\t'),
+            self.path.replace("\t", "\\t"),
             self))
 
     def to_str_json(self, indent=None):
@@ -102,26 +101,26 @@ def get_image_metadata(file_path):
         data = input.read(26)
         msg = " raised while trying to decode as JPEG."
 
-        if (size >= 10) and data[:6] in (b'GIF87a', b'GIF89a'):
+        if (size >= 10) and data[:6] in (b"GIF87a", b"GIF89a"):
             # GIFs
             imgtype = GIF
             w, h = struct.unpack("<HH", data[6:10])
             width = int(w)
             height = int(h)
-        elif ((size >= 24) and data.startswith(b'\211PNG\r\n\032\n')
-              and (data[12:16] == b'IHDR')):
+        elif ((size >= 24) and data.startswith(b"\211PNG\r\n\032\n")
+              and (data[12:16] == b"IHDR")):
             # PNGs
             imgtype = PNG
             w, h = struct.unpack(">LL", data[16:24])
             width = int(w)
             height = int(h)
-        elif (size >= 16) and data.startswith(b'\211PNG\r\n\032\n'):
+        elif (size >= 16) and data.startswith(b"\211PNG\r\n\032\n"):
             # older PNGs
             imgtype = PNG
             w, h = struct.unpack(">LL", data[8:16])
             width = int(w)
             height = int(h)
-        elif (size >= 2) and data.startswith(b'\377\330'):
+        elif (size >= 2) and data.startswith(b"\377\330"):
             # JPEG
             imgtype = JPEG
             input.seek(0)
@@ -149,9 +148,9 @@ def get_image_metadata(file_path):
                 raise UnknownImageFormat("ValueError" + msg)
             except Exception as e:
                 raise UnknownImageFormat(e.__class__.__name__ + msg)
-        elif (size >= 26) and data.startswith(b'BM'):
+        elif (size >= 26) and data.startswith(b"BM"):
             # BMP
-            imgtype = 'BMP'
+            imgtype = "BMP"
             headersize = struct.unpack("<I", data[14:18])[0]
             if headersize == 12:
                 w, h = struct.unpack("<HH", data[18:22])
@@ -187,7 +186,7 @@ def get_image_metadata(file_path):
                 9: (4, boChar + "l"),  # SLONG
                 10: (8, boChar + "ll"),  # SRATIONAL
                 11: (4, boChar + "f"),  # FLOAT
-                12: (8, boChar + "d")   # DOUBLE
+                12: (8, boChar + "d"),   # DOUBLE
             }
             ifdOffset = struct.unpack(boChar + "L", data[4:8])[0]
             try:
@@ -227,13 +226,13 @@ def get_image_metadata(file_path):
                 raise UnknownImageFormat(str(e))
         elif size >= 2:
                 # see http://en.wikipedia.org/wiki/ICO_(file_format)
-            imgtype = 'ICO'
+            imgtype = "ICO"
             input.seek(0)
             reserved = input.read(2)
-            if 0 != struct.unpack("<H", reserved)[0]:
+            if struct.unpack("<H", reserved)[0] != 0:
                 raise UnknownImageFormat(FILE_UNKNOWN)
             format = input.read(2)
-            assert 1 == struct.unpack("<H", format)[0]
+            assert struct.unpack("<H", format)[0] == 1
             num = input.read(2)
             num = struct.unpack("<H", num)[0]
             if num > 1:
@@ -256,45 +255,45 @@ def get_image_metadata(file_path):
 
 import unittest
 
+import pytest
+
 
 class Test_get_image_size(unittest.TestCase):
     data = [{
-        'path': 'lookmanodeps.png',
-        'width': 251,
-        'height': 208,
-        'file_size': 22228,
-        'type': 'PNG'}]
+        "path": "lookmanodeps.png",
+        "width": 251,
+        "height": 208,
+        "file_size": 22228,
+        "type": "PNG"}]
 
     def setUp(self):
         pass
 
     def test_get_image_metadata(self):
         img = self.data[0]
-        output = get_image_metadata(img['path'])
-        self.assertTrue(output)
-        self.assertEqual(output.path, img['path'])
-        self.assertEqual(output.width, img['width'])
-        self.assertEqual(output.height, img['height'])
-        self.assertEqual(output.type, img['type'])
-        self.assertEqual(output.file_size, img['file_size'])
+        output = get_image_metadata(img["path"])
+        assert output
+        assert output.path == img["path"]
+        assert output.width == img["width"]
+        assert output.height == img["height"]
+        assert output.type == img["type"]
+        assert output.file_size == img["file_size"]
         for field in image_fields:
-            self.assertEqual(getattr(output, field), img[field])
+            assert getattr(output, field) == img[field]
 
     def test_get_image_metadata__ENOENT_OSError(self):
-        with self.assertRaises(OSError):
-            get_image_metadata('THIS_DOES_NOT_EXIST')
+        with pytest.raises(OSError):
+            get_image_metadata("THIS_DOES_NOT_EXIST")
 
     def test_get_image_metadata__not_an_image_UnknownImageFormat(self):
-        with self.assertRaises(UnknownImageFormat):
-            get_image_metadata('README.rst')
+        with pytest.raises(UnknownImageFormat):
+            get_image_metadata("README.rst")
 
     def test_get_image_size(self):
         img = self.data[0]
-        output = get_image_size(img['path'])
-        self.assertTrue(output)
-        self.assertEqual(output,
-                         (img['width'],
-                          img['height']))
+        output = get_image_size(img["path"])
+        assert output
+        assert output == (img["width"], img["height"])
 
     def tearDown(self):
         pass
@@ -318,22 +317,22 @@ def main(argv=None):
         description="Print metadata for the given image paths "
                     "(without image library bindings).")
 
-    prs.add_option('--json',
-                   dest='json',
-                   action='store_true')
-    prs.add_option('--json-indent',
-                   dest='json_indent',
-                   action='store_true')
+    prs.add_option("--json",
+                   dest="json",
+                   action="store_true")
+    prs.add_option("--json-indent",
+                   dest="json_indent",
+                   action="store_true")
 
-    prs.add_option('-v', '--verbose',
-                   dest='verbose',
-                   action='store_true',)
-    prs.add_option('-q', '--quiet',
-                   dest='quiet',
-                   action='store_true',)
-    prs.add_option('-t', '--test',
-                   dest='run_tests',
-                   action='store_true',)
+    prs.add_option("-v", "--verbose",
+                   dest="verbose",
+                   action="store_true")
+    prs.add_option("-q", "--quiet",
+                   dest="quiet",
+                   action="store_true")
+    prs.add_option("-t", "--test",
+                   dest="run_tests",
+                   action="store_true")
 
     argv = list(argv) if argv is not None else sys.argv[1:]
     (opts, args) = prs.parse_args(args=argv)
@@ -344,13 +343,13 @@ def main(argv=None):
         loglevel = logging.ERROR
     logging.basicConfig(level=loglevel)
     log = logging.getLogger()
-    log.debug('argv: %r', argv)
-    log.debug('opts: %r', opts)
-    log.debug('args: %r', args)
+    log.debug("argv: %r", argv)
+    log.debug("opts: %r", opts)
+    log.debug("args: %r", args)
 
     if opts.run_tests:
         import sys
-        sys.argv = [sys.argv[0]] + args
+        sys.argv = [sys.argv[0], *args]
         import unittest
         return unittest.main()
 
@@ -368,7 +367,7 @@ def main(argv=None):
 
     if len(args) < 1:
         prs.print_help()
-        print('')
+        print("")
         prs.error("You must specify one or more paths to image files")
 
     errors = []

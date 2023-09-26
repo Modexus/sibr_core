@@ -1,10 +1,10 @@
 # Copyright (C) 2020, Inria
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
-# 
-# This software is free for non-commercial, research and evaluation use 
+#
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
-# 
+#
 # For inquiries contact sibr@inria.fr and/or George.Drettakis@inria.fr
 
 
@@ -19,42 +19,39 @@ Parameters: -h help,
             -o <path to output directory which can be fed into SIBR apps> <default: input directory> [optional],
             -r use release w/ debug symbols executables
 
-Usage: python ibr_preprocess_rc_to_sibr.py -i <path_to_sibr>\sibr\install\bin\datasets\museum_sibr_old_preproc
-                                           -d <path_to_sibr>\sibr\install\bin\datasets\museum_sibr_new_preproc2
+Usage: python ibr_preprocess_rc_to_sibr.py -i <path_to_sibr>\\sibr\\install\bin\\datasets\\museum_sibr_old_preproc
+                                           -d <path_to_sibr>\\sibr\\install\bin\\datasets\\museum_sibr_new_preproc2
 
 """
 
-import subprocess
+import getopt
+import imghdr
+import os
 import shutil
-import os, sys, getopt
-import re
-from utils.commands import getProcess
-from utils.paths import getBinariesPath
-
-from os import walk
 
 #--------------------------------------------
-
 #===============================================================================
-
 import struct
-import imghdr
+import sys
+
+from utils.paths import getBinariesPath
+
 
 def get_image_size(fname):
-    '''Determine the image type of fhandle and return its size.
-    from draco'''
-    with open(fname, 'rb') as fhandle:
+    """Determine the image type of fhandle and return its size.
+    from draco"""
+    with open(fname, "rb") as fhandle:
         head = fhandle.read(24)
         if len(head) != 24:
-            return
-        if imghdr.what(fname) == 'png':
-            check = struct.unpack('>i', head[4:8])[0]
+            return None
+        if imghdr.what(fname) == "png":
+            check = struct.unpack(">i", head[4:8])[0]
             if check != 0x0d0a1a0a:
-                return
-            width, height = struct.unpack('>ii', head[16:24])
-        elif imghdr.what(fname) == 'gif':
-            width, height = struct.unpack('<HH', head[6:10])
-        elif imghdr.what(fname) == 'jpeg':
+                return None
+            width, height = struct.unpack(">ii", head[16:24])
+        elif imghdr.what(fname) == "gif":
+            width, height = struct.unpack("<HH", head[6:10])
+        elif imghdr.what(fname) == "jpeg":
             try:
                 fhandle.seek(0) # Read 0xff next
                 size = 2
@@ -65,16 +62,16 @@ def get_image_size(fname):
                     while ord(byte) == 0xff:
                         byte = fhandle.read(1)
                     ftype = ord(byte)
-                    size = struct.unpack('>H', fhandle.read(2))[0] - 2
+                    size = struct.unpack(">H", fhandle.read(2))[0] - 2
                 # We are at a SOFn block
                 fhandle.seek(1, 1)  # Skip `precision' byte.
-                height, width = struct.unpack('>HH', fhandle.read(4))
+                height, width = struct.unpack(">HH", fhandle.read(4))
             except Exception: #IGNORE:W0703
-                return
+                return None
         else:
-            return
+            return None
         return width, height
-    
+
 def checkOutput( output, force_continue ):
     if( output != 0):
         if( not force_continue ):
@@ -83,7 +80,7 @@ def checkOutput( output, force_continue ):
             return False
     else:
         return True
-    
+
 
 #===============================================================================
 
@@ -96,18 +93,18 @@ def main(argv, path_dest):
     executables_folder = getBinariesPath()
     path_data = ""
     for opt, arg in opts:
-        if opt == '-h':
+        if opt == "-h":
             print("-i path_to_old_dataset -d path_to_new_dataset [-r (use release w/ debug symbols executables)]")
             sys.exit()
-        elif opt == '-i':
+        elif opt == "-i":
             path_data = arg
-            print(['Setting path_data to ', path_data])
-        elif opt == '-r':
+            print(["Setting path_data to ", path_data])
+        elif opt == "-r":
             executables_suffix = "_rwdi"
             print("Using rwdi executables.")
-        elif opt == '-o':
+        elif opt == "-o":
             path_dest = arg
-            print(['Setting path_dest to ', path_dest])
+            print(["Setting path_dest to ", path_dest])
 
     return (path_data, path_dest, executables_suffix, executables_folder)
 
@@ -126,12 +123,10 @@ path_dest = os.path.abspath(path_dest + "/") + "/"
 path_in_imgs = path_data
 
 
-print(['Raw_data folder: ', path_data])
-print(['Path_dest: ', path_dest])
+print(["Raw_data folder: ", path_data])
+print(["Path_dest: ", path_dest])
 
-#path_dest_pmvs    = path_dest + "pmvs/models/";
-file_nameList   = path_data + "images/list_images.txt";
-# path_scene_metadata = path_data + "scene_metadata.txt"
+file_nameList   = path_data + "images/list_images.txt"
 
 
 #--------------------------------------------
@@ -144,7 +139,7 @@ list_images = []
 
 print(path_list_images)
 if os.path.exists(path_list_images):
-    list_image_file = open(path_list_images, "r")
+    list_image_file = open(path_list_images)
 
     for line in list_image_file:
         list_images.append(line)
@@ -156,10 +151,10 @@ path_clipping_planes = os.path.join(path_data, "clipping_planes.txt")
 clipping_planes = []
 
 if os.path.exists(path_clipping_planes):
-    clipping_planes_file = open(path_clipping_planes, "r")
+    clipping_planes_file = open(path_clipping_planes)
 
     for line in clipping_planes_file:
-        line = line.strip('\n')
+        line = line.strip("\n")
         clipping_planes.append(line)
 
     clipping_planes_file.close()
@@ -176,30 +171,30 @@ for f in folder_to_create:
 scene_metadata = scene_metadata + "[list_images]\n<filename> <image_width> <image_height> <near_clipping_plane> <far_clipping_plane>\n"
 
 for im in list_images:
-    print("copying: "+im.split(' ', 1)[0])
+    print("copying: "+im.split(" ", 1)[0])
     shutil.copy(
-        os.path.join(path_data,im.split(' ', 1)[0]),
-        os.path.join(path_dest,"images",im.split(' ', 1)[0])
+        os.path.join(path_data,im.split(" ", 1)[0]),
+        os.path.join(path_dest,"images",im.split(" ", 1)[0]),
         )
 
-    if len(clipping_planes) is not 0:
+    if len(clipping_planes) != 0:
         scene_metadata = scene_metadata + im[:-1] + " " + clipping_planes[0] + "\n"
     else:
         scene_metadata = scene_metadata + im[:-1] + " 0.01 100\n"
 
 shutil.copy(
         os.path.join(path_data,"list_images.txt"),
-        os.path.join(path_dest,"images","list_images.txt")
+        os.path.join(path_dest,"images","list_images.txt"),
         )
 
 shutil.copy(
         os.path.join(path_data,"bundle.out"),
-        os.path.join(path_dest,"cameras","bundle.out")
+        os.path.join(path_dest,"cameras","bundle.out"),
         )
 
 shutil.copy(
         os.path.join(path_data,"pmvs/models/pmvs_recon.ply"),
-        os.path.join(path_dest,"meshes/recon.ply")
+        os.path.join(path_dest,"meshes/recon.ply"),
         )
 
 scene_metadata = scene_metadata + "\n\n// Always specify active/exclude images after list images\n\n[exclude_images]\n<image1_idx> <image2_idx> ... <image3_idx>\n"

@@ -29,12 +29,12 @@
 #
 # Author: Johannes L. Schoenberger (jsch-at-demuc-dot-de)
 
-import os
-import collections
-import numpy as np
-import struct
 import argparse
+import collections
+import os
+import struct
 
+import numpy as np
 
 CameraModel = collections.namedtuple(
     "CameraModel", ["model_id", "model_name", "num_params"])
@@ -62,12 +62,12 @@ CAMERA_MODELS = {
     CameraModel(model_id=7, model_name="FOV", num_params=5),
     CameraModel(model_id=8, model_name="SIMPLE_RADIAL_FISHEYE", num_params=4),
     CameraModel(model_id=9, model_name="RADIAL_FISHEYE", num_params=5),
-    CameraModel(model_id=10, model_name="THIN_PRISM_FISHEYE", num_params=12)
+    CameraModel(model_id=10, model_name="THIN_PRISM_FISHEYE", num_params=12),
 }
-CAMERA_MODEL_IDS = dict([(camera_model.model_id, camera_model)
-                         for camera_model in CAMERA_MODELS])
-CAMERA_MODEL_NAMES = dict([(camera_model.model_name, camera_model)
-                           for camera_model in CAMERA_MODELS])
+CAMERA_MODEL_IDS = {camera_model.model_id: camera_model
+                         for camera_model in CAMERA_MODELS}
+CAMERA_MODEL_NAMES = {camera_model.model_name: camera_model
+                           for camera_model in CAMERA_MODELS}
 
 
 def read_next_bytes(fid, num_bytes, format_char_sequence, endian_character="<"):
@@ -91,7 +91,7 @@ def write_next_bytes(fid, data, format_char_sequence, endian_character="<"):
     should be the same length as the data list or tuple
     :param endian_character: Any of {@, =, <, >, !}
     """
-    if isinstance(data, (list, tuple)):
+    if isinstance(data, list | tuple):
         bytes = struct.pack(endian_character + format_char_sequence, *data)
     else:
         bytes = struct.pack(endian_character + format_char_sequence, data)
@@ -105,7 +105,7 @@ def read_cameras_text(path):
         void Reconstruction::ReadCamerasText(const std::string& path)
     """
     cameras = {}
-    with open(path, "r") as fid:
+    with open(path) as fid:
         while True:
             line = fid.readline()
             if not line:
@@ -161,10 +161,10 @@ def write_cameras_text(cameras, path):
     """
     HEADER = "# Camera list with one line of data per camera:\n" + \
              "#   CAMERA_ID, MODEL, WIDTH, HEIGHT, PARAMS[]\n" + \
-             "# Number of cameras: {}\n".format(len(cameras))
+             f"# Number of cameras: {len(cameras)}\n"
     with open(path, "w") as fid:
         fid.write(HEADER)
-        for _, cam in cameras.items():
+        for cam in cameras.values():
             to_write = [cam.id, cam.model, cam.width, cam.height, *cam.params]
             line = " ".join([str(elem) for elem in to_write])
             fid.write(line + "\n")
@@ -178,7 +178,7 @@ def write_cameras_binary(cameras, path_to_model_file):
     """
     with open(path_to_model_file, "wb") as fid:
         write_next_bytes(fid, len(cameras), "Q")
-        for _, cam in cameras.items():
+        for cam in cameras.values():
             model_id = CAMERA_MODEL_NAMES[cam.model].model_id
             camera_properties = [cam.id,
                                  model_id,
@@ -197,7 +197,7 @@ def read_images_text(path):
         void Reconstruction::WriteImagesText(const std::string& path)
     """
     images = {}
-    with open(path, "r") as fid:
+    with open(path) as fid:
         while True:
             line = fid.readline()
             if not line:
@@ -273,7 +273,7 @@ def write_images_text(images, path):
 
     with open(path, "w") as fid:
         fid.write(HEADER)
-        for _, img in images.items():
+        for img in images.values():
             image_header = [img.id, *img.qvec, *img.tvec, img.camera_id, img.name]
             first_line = " ".join(map(str, image_header))
             fid.write(first_line + "\n")
@@ -292,7 +292,7 @@ def write_images_binary(images, path_to_model_file):
     """
     with open(path_to_model_file, "wb") as fid:
         write_next_bytes(fid, len(images), "Q")
-        for _, img in images.items():
+        for img in images.values():
             write_next_bytes(fid, img.id, "i")
             write_next_bytes(fid, img.qvec.tolist(), "dddd")
             write_next_bytes(fid, img.tvec.tolist(), "ddd")
@@ -312,7 +312,7 @@ def read_points3D_text(path):
         void Reconstruction::WritePoints3DText(const std::string& path)
     """
     points3D = {}
-    with open(path, "r") as fid:
+    with open(path) as fid:
         while True:
             line = fid.readline()
             if not line:
@@ -378,7 +378,7 @@ def write_points3D_text(points3D, path):
 
     with open(path, "w") as fid:
         fid.write(HEADER)
-        for _, pt in points3D.items():
+        for pt in points3D.values():
             point_header = [pt.id, *pt.xyz, *pt.rgb, pt.error]
             fid.write(" ".join(map(str, point_header)) + " ")
             track_strings = []
@@ -395,7 +395,7 @@ def write_points3D_binary(points3D, path_to_model_file):
     """
     with open(path_to_model_file, "wb") as fid:
         write_next_bytes(fid, len(points3D), "Q")
-        for _, pt in points3D.items():
+        for pt in points3D.values():
             write_next_bytes(fid, pt.id, "Q")
             write_next_bytes(fid, pt.xyz.tolist(), "ddd")
             write_next_bytes(fid, pt.rgb.tolist(), "BBB")
@@ -425,7 +425,7 @@ def read_model(path, ext=""):
             ext = ".txt"
         else:
             print("Provide model format: '.bin' or '.txt'")
-            return
+            return None
 
     if ext == ".txt":
         cameras = read_cameras_text(os.path.join(path, "cameras" + ext))

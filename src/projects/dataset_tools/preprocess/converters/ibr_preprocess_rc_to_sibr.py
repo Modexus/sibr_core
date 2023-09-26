@@ -1,10 +1,10 @@
 # Copyright (C) 2020, Inria
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
-# 
-# This software is free for non-commercial, research and evaluation use 
+#
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
-# 
+#
 # For inquiries contact sibr@inria.fr and/or George.Drettakis@inria.fr
 
 
@@ -20,52 +20,48 @@ Parameters: -h help,
             -r use release w/ debug symbols executables
 
 Usage: python ibr_preprocess_rc_to_sibr.py -r
-                                           -i <path_to_sibr>\sibr\install\bin\datasets\museum_sibr_new_preproc_template_RCOut
-                                           -o <path_to_sibr>\sibr\install\bin\datasets\museum_sibr_new_preproc2
+                                           -i <path_to_sibr>\\sibr\\install\bin\\datasets\\museum_sibr_new_preproc_template_RCOut
+                                           -o <path_to_sibr>\\sibr\\install\bin\\datasets\\museum_sibr_new_preproc2
 
 """
 
-import subprocess
-import shutil
+import getopt
+import imghdr
 import os
-import re
-from utils.commands import getProcess
-from utils.paths import getBinariesPath
-from generate_list_images import generateListImages
-
-from os import walk
-
-# --------------------------------------------
-
-from tempfile import mkstemp
-from shutil import move
-from os import remove, close
+import shutil
+import struct
+import subprocess
 
 # ===============================================================================
+import sys
+from os import close, remove
+from shutil import move
 
-import sys, getopt
-import struct
-import imghdr
+# --------------------------------------------
+from tempfile import mkstemp
 
 # ===============================================================================
 import bundle
+from generate_list_images import generateListImages
+from utils.commands import getProcess
+from utils.paths import getBinariesPath
 
 
 def get_image_size(fname):
-    '''Determine the image type of fhandle and return its size.
-    from draco'''
-    with open(fname, 'rb') as fhandle:
+    """Determine the image type of fhandle and return its size.
+    from draco"""
+    with open(fname, "rb") as fhandle:
         head = fhandle.read(24)
         if len(head) != 24:
-            return
-        if imghdr.what(fname) == 'png':
-            check = struct.unpack('>i', head[4:8])[0]
+            return None
+        if imghdr.what(fname) == "png":
+            check = struct.unpack(">i", head[4:8])[0]
             if check != 0x0d0a1a0a:
-                return
-            width, height = struct.unpack('>ii', head[16:24])
-        elif imghdr.what(fname) == 'gif':
-            width, height = struct.unpack('<HH', head[6:10])
-        elif imghdr.what(fname) == 'jpeg':
+                return None
+            width, height = struct.unpack(">ii", head[16:24])
+        elif imghdr.what(fname) == "gif":
+            width, height = struct.unpack("<HH", head[6:10])
+        elif imghdr.what(fname) == "jpeg":
             try:
                 fhandle.seek(0)  # Read 0xff next
                 size = 2
@@ -76,14 +72,14 @@ def get_image_size(fname):
                     while ord(byte) == 0xff:
                         byte = fhandle.read(1)
                     ftype = ord(byte)
-                    size = struct.unpack('>H', fhandle.read(2))[0] - 2
+                    size = struct.unpack(">H", fhandle.read(2))[0] - 2
                 # We are at a SOFn block
                 fhandle.seek(1, 1)  # Skip `precision' byte.
-                height, width = struct.unpack('>HH', fhandle.read(4))
+                height, width = struct.unpack(">HH", fhandle.read(4))
             except Exception:  # IGNORE:W0703
-                return
+                return None
         else:
-            return
+            return None
         return width, height
 
 
@@ -92,10 +88,9 @@ def get_image_size(fname):
 def replace(file_path, pattern, subst):
     # Create temp file
     fh, abs_path = mkstemp()
-    with open(abs_path, 'w') as new_file:
-        with open(file_path) as old_file:
-            for line in old_file:
-                new_file.write(line.replace(pattern, subst))
+    with open(abs_path, "w") as new_file, open(file_path) as old_file:
+        for line in old_file:
+            new_file.write(line.replace(pattern, subst))
     close(fh)
     # Remove original file
     remove(file_path)
@@ -190,19 +185,19 @@ def main(argv, path_dest):
     executables_folder = getBinariesPath()
     path_data = ""
     for opt, arg in opts:
-        if opt == '-h':
+        if opt == "-h":
             print("-i path_to_rc_data_dir -o path_to_destination_dir [-r (use release w/ debug symbols executables)]")
             sys.exit()
-        elif opt == '-i':
+        elif opt == "-i":
             path_data = arg
-            print(['Setting path_data to ', path_data])
-        elif opt == '-r':
+            print(["Setting path_data to ", path_data])
+        elif opt == "-r":
             executables_suffix = "_rwdi"
             print("Using rwdi executables.")
-        elif opt == '-o':
+        elif opt == "-o":
             path_dest = arg
-            print(['Setting path_dest to ', path_dest])
-        elif opt in ('-bin', '--bin'):
+            print(["Setting path_dest to ", path_dest])
+        elif opt in ("-bin", "--bin"):
             executables_folder = os.path.abspath(arg)
 
     return (path_data, path_dest, executables_suffix, executables_folder)
@@ -224,9 +219,9 @@ executables_folder = os.path.abspath(executables_folder + "/") + "/"
 path_in_imgs = path_data
 path_out_imgs = path_dest + "images/"
 
-print(['Raw_data folder: ', path_data])
-print(['Path_dest: ', path_dest])
-print(['Executables folder: ', executables_folder])
+print(["Raw_data folder: ", path_data])
+print(["Path_dest: ", path_dest])
+print(["Executables folder: ", executables_folder])
 
 # dirs to create
 
@@ -234,7 +229,7 @@ raw_data = "raw/"
 cameras_dir = "cameras/"
 images_dir = "images/"
 pmvs_model_dir	= "meshes/"
-parentdir = os.path.dirname(os.path.split(path_dest)[0]) 
+parentdir = os.path.dirname(os.path.split(path_dest)[0])
 print("COMPARE " ,  parentdir , " AND " ,  os.path.dirname(os.path.split(path_data)[0]))
 if( parentdir == os.path.dirname(os.path.split(path_data)[0])):
 	capreal_dir = os.path.join(parentdir, "capreal/")
@@ -281,7 +276,7 @@ input_bundle.generate_list_of_images_file(resolutions_txt_path)
 
 # call distordCrop
 p_exit = subprocess.call([crop_app, "--path", path_data, "--ratio",  "0.3", "--avg_width", str(avg_resolution[0]), "--avg_height", str(avg_resolution[1]) ])
-print(crop_app, " exited with ", p_exit);
+print(crop_app, " exited with ", p_exit)
 checkOutput(p_exit, False)
 
 # read new proposed resolution and check if images were discarded
@@ -289,7 +284,7 @@ exclude = []
 path_to_exclude_images_txt = os.path.join(path_data, "exclude_images.txt")
 if (os.path.exists(path_to_exclude_images_txt)):
     # list of excluded cameras (one line having all the camera ids to exclude)
-    exclusion_file = open(path_to_exclude_images_txt, "r")
+    exclusion_file = open(path_to_exclude_images_txt)
     line = exclusion_file.readline()
     tokens = line.split()
 
@@ -339,7 +334,7 @@ crop_from_center_args = [crop_from_center_app,
     "--inputFile", path_to_transform_list_txt,
     "--outputPath", path_out_imgs,
     "--avgResolution", str(avg_resolution[0]), str(avg_resolution[1]),
-    "--cropResolution", str(proposed_res[0]), str(proposed_res[1])
+    "--cropResolution", str(proposed_res[0]), str(proposed_res[1]),
 ]
 
 # calculate scale factor and how to achieve target resolution
@@ -348,12 +343,12 @@ if (target_res is not None):
     scale_factor = get_scale_factor(proposed_res, target_res)
     crop_from_center_args.extend([
         "--scaleDownFactor", str(scale_factor),
-        "--targetResolution", str(target_res[0]), str(target_res[1])
+        "--targetResolution", str(target_res[0]), str(target_res[1]),
     ])
 
 # call cropFromCenter
 p_exit = subprocess.call(crop_from_center_args)
-print(crop_from_center_app, " exited with ", p_exit);
+print(crop_from_center_app, " exited with ", p_exit)
 checkOutput(p_exit, False)
 
 # write bundle file in output cameras folder
@@ -376,11 +371,11 @@ print("***** TEXT * ", textured_mesh_base_name)
 
 # copy files
 files_to_move = [   #['pmvs/models/pmvs_recon.ply',''],
-                    ['pmvs_recon.ply', pmvs_model_dir],
-                    ['mesh.ply', pmvs_model_dir],
-                    ['mesh.ply', capreal_dir],
-                    ['recon.ply', pmvs_model_dir],
-                    ['rc_out.csv', path_dest],
+                    ["pmvs_recon.ply", pmvs_model_dir],
+                    ["mesh.ply", pmvs_model_dir],
+                    ["mesh.ply", capreal_dir],
+                    ["recon.ply", pmvs_model_dir],
+                    ["rc_out.csv", path_dest],
                     ["textured.obj", capreal_dir],
                     ["textured.mtl", capreal_dir],
                     ["textured_u1_v1.png", capreal_dir],
@@ -390,7 +385,6 @@ files_to_move = [   #['pmvs/models/pmvs_recon.ply',''],
 for filename, directory_name in files_to_move:
     source_file = os.path.join (path_data, filename)
     destination_file = os.path.join (os.path.join (path_dest, directory_name), filename)
-    # print("Trying ",  source_folder + file , " ", destination_folder + dir + file )
     print("Trying ",  source_file , "-->", destination_file )
     if (os.path.exists(source_file)):
         print("Moving ",  source_file , " ", destination_file )
@@ -406,7 +400,7 @@ clipping_planes_args = [clipping_planes_app, path_dest]
 
 # call clippingPlanes app
 p_exit = subprocess.call(clipping_planes_args)
-print(clipping_planes_app, " exited with ", p_exit);
+print(clipping_planes_app, " exited with ", p_exit)
 checkOutput(p_exit, False)
 
 ################################################################################
@@ -425,7 +419,7 @@ generateListImages(path_images)
 list_images = []
 
 if os.path.exists(path_list_images):
-    list_image_file = open(path_list_images, "r")
+    list_image_file = open(path_list_images)
 
     for line in list_image_file:
         list_images.append(line)
@@ -437,7 +431,7 @@ path_clipping_planes = os.path.join(path_dest, "clipping_planes.txt")
 clipping_planes = []
 
 if os.path.exists(path_clipping_planes):
-    clipping_planes_file = open(path_clipping_planes, "r")
+    clipping_planes_file = open(path_clipping_planes)
 
     for line in clipping_planes_file:
         clipping_planes.append(line)
@@ -458,7 +452,6 @@ scene_metadata = scene_metadata + "\n\n// Always specify active/exclude images a
 
 # if len(exclude) > 0:
 #     for line in exclude:
-#         scene_metadata = scene_metadata + str(line) + " "
 
 scene_metadata = scene_metadata + "\n\n\n[other parameters]"
 

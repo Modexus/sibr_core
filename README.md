@@ -1,3 +1,7 @@
+# FIX!!!
+# https://github.com/graphdeco-inria/gaussian-splatting/issues/151
+
+
 # SIBR Core
 
 **SIBR** is a System for Image-Based Rendering.  

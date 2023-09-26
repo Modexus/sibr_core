@@ -3,15 +3,12 @@
 #
 import os
 import os.path
-import sys
-import argparse
 import shutil
-import sqlite3
-import read_write_model as rwm
-import pymeshlab
-
+import sys
 
 import cv2
+import pymeshlab
+
 print(cv2.__version__)
 
 
@@ -21,17 +18,17 @@ Library for RealityCapture treatment
 
 """
 
+import os
+import shutil
+import sys
+
 import bundle
-import os, sys, shutil
-import json
-import argparse
-import scipy
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from utils.paths import getBinariesPath, getColmapPath, getMeshlabPath
-from utils.commands import  getProcess, getColmap, getRCprocess, runCommand
+from utils.commands import getProcess, runCommand
 
-def preprocess_for_rc(path, video_name='default', do_validation_split=True, valid_skip='10'):
+
+def preprocess_for_rc(path, video_name="default", do_validation_split=True, valid_skip="10"):
     # create train/validation split (every 10 images by default now)
     print("VALID SKIP ", valid_skip)
     int_valid_skip = int(valid_skip)
@@ -53,22 +50,21 @@ def preprocess_for_rc(path, video_name='default', do_validation_split=True, vali
             shutil.move(os.path.join(path, "images"), imagespath)
         elif not os.path.exists(os.path.join(path, "videos")) and not os.path.exists(videopath):
             print("ERROR: No images nor video, exiting. Images should be in $path/raw/images")
-            exit(-1)
+            sys.exit(-1)
         # videos are optional
         if os.path.exists(os.path.join(path, "videos")):
             shutil.move(os.path.join(path, "videos"), videopath)
         # test images (stills for path)
         test_orig = os.path.join(path, "test")
-#        print("TEST ", test_orig, " " , os.path.exists(test_orig) , " > ", testpath)
         if os.path.exists(test_orig):
             do_test = True
             shutil.move(test_orig, testpath)
     else:
-        print("Found images {}".format(imagespath))
+        print(f"Found images {imagespath}")
         if os.path.exists(videopath):
-            print("Found video {}".format(videopath))
+            print(f"Found video {videopath}")
         if os.path.exists(testpath):
-            print("Found test {}".format(testpath))
+            print(f"Found test {testpath}")
             do_test = True
 
     cnt = 0
@@ -101,22 +97,19 @@ def preprocess_for_rc(path, video_name='default', do_validation_split=True, vali
         os.makedirs(caprealpath)
 
     # BUG: do_validation_split is a string
-    if do_validation_split != 'False':
+    if do_validation_split != "False":
         print("Train/Validation", train_path , " : ", validation_path)
         for filename in os.listdir(imagespath):
             ext = os.path.splitext(filename)[1]
             if ext == ".JPG" or ext == ".jpg" or ext == ".PNG" or ext == ".png" :
-                image = os.path.join(imagespath, filename) 
-#            print("IM ", image)
+                image = os.path.join(imagespath, filename)
                 if not(cnt % int_valid_skip ):
                     filename = "validation_"+filename
                     fname = os.path.join(validation_path, filename)
-#                print("Copying ", image, " to ", fname , " in validation")
                     shutil.copyfile(image, fname)
                 else:
                     filename = "train_"+filename
                     fname = os.path.join(train_path, filename)
-#                print("Copying ", image, " to ", fname , " in train")
                     shutil.copyfile(image, fname)
 
             cnt = cnt + 1
@@ -125,12 +118,10 @@ def preprocess_for_rc(path, video_name='default', do_validation_split=True, vali
         for filename in os.listdir(imagespath):
             ext = os.path.splitext(filename)[1]
             if ext == ".JPG" or ext == ".jpg" or ext == ".PNG" or ext == ".png" :
-                image = os.path.join(imagespath, filename) 
-#            print("IM ", image)
-          
+                image = os.path.join(imagespath, filename)
+
                 filename = "train_"+filename
                 fname = os.path.join(train_path, filename)
-#                print("Copying ", image, " to ", fname , " in train")
                 shutil.copyfile(image, fname)
 
             cnt = cnt + 1
@@ -139,22 +130,19 @@ def preprocess_for_rc(path, video_name='default', do_validation_split=True, vali
         for filename in os.listdir(testpath):
             ext = os.path.splitext(filename)[1]
             if ext == ".JPG" or ext == ".jpg" or ext == ".PNG" or ext == ".jpg" :
-                image = os.path.join(testpath, filename) 
+                image = os.path.join(testpath, filename)
                 filename = "test_"+filename
                 fname = os.path.join(input_test_path, filename)
-#                print("Copying ", image, " to ", fname , " in test")
                 shutil.copyfile(image, fname)
     else:
         print ("****************** NOT DOING TEST !!!")
 
 
     # extract video name -- if not given, take first
-    if video_name == 'default':
-        if os.path.exists(videopath):
-            for filename in os.listdir(videopath):
-#            print("Checking ", filename)
-                if ("MP4" in filename) or ("mp4" in filename):
-                    video_name = filename
+    if video_name == "default" and os.path.exists(videopath):
+        for filename in os.listdir(videopath):
+            if ("MP4" in filename) or ("mp4" in filename):
+                video_name = filename
     video_filename = os.path.join(path, os.path.join("raw", os.path.join("videos", video_name)))
     print("Full video path:", video_filename)
 
@@ -171,10 +159,10 @@ def convert_sibr_mesh(path):
     print("Done saving mesh (slow...)", out_mesh_path)
     texture_path = os.path.join(os.path.join(os.path.join(path, "sibr"), "capreal"), "mesh_u1_v1.png")
     out_texture_path = os.path.join(os.path.join(os.path.join(path, "sibr"), "capreal"), "texture.png")
-    print("Copying (to allow meshlab to work) {} to {}".format(texture_path, out_texture_path))
+    print(f"Copying (to allow meshlab to work) {texture_path} to {out_texture_path}")
     shutil.copyfile(texture_path, out_texture_path)
     out_mesh_path = os.path.join(os.path.join(os.path.join(os.path.join(path, "sibr"), "colmap"), "stereo"), "meshed-delaunay.ply")
-    print("Copying {} to {}".format(meshply_path, out_mesh_path))
+    print(f"Copying {meshply_path} to {out_mesh_path}")
     shutil.copyfile(meshply_path, out_mesh_path)
 
 
@@ -229,10 +217,10 @@ def rc_to_colmap(rc_path, out_path, create_colmap=False, target_width=-1):
 
     camera_id = 1
     scale = 1.
-    with open(fname, 'w') as outfile:
+    with open(fname, "w") as outfile:
         outfile.write("# Camera list with one line of data per camera:\n")
         outfile.write("#   CAMERA_ID, MODEL, WIDTH, HEIGHT, PARAMS[]\n")
-        outfile.write("# Number of cameras: {}\n".format(numcams))
+        outfile.write(f"# Number of cameras: {numcams}\n")
         for im in input_bundle.list_of_input_images:
             width = im.resolution[0]
             height = im.resolution[1]
@@ -242,11 +230,11 @@ def rc_to_colmap(rc_path, out_path, create_colmap=False, target_width=-1):
             if target_width != -1:
                 orig_width = width
                 width = float(target_width)
-                scale = float(target_width) / orig_width 
+                scale = float(target_width) / orig_width
                 aspect = height / orig_width
                 height = width * aspect
                 focal_length = scale * focal_length
-               
+
             outfile.write("{} PINHOLE {} {} {} {} {} {}\n".format(camera_id, int(width), int(height), focal_length, focal_length, width/2.0, height/2.0))
             camera_id = camera_id + 1
         outfile.close()
@@ -256,7 +244,7 @@ def rc_to_colmap(rc_path, out_path, create_colmap=False, target_width=-1):
 
     print("Creating ", fname)
     camera_id = 1
-    with open(fname, 'w') as outfile:
+    with open(fname, "w") as outfile:
         outfile.write( "# Image list with two lines of data per image:\n" )
         outfile.write( "#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME\n" )
         outfile.write( "#   POINTS2D[] as (X, Y, POINT3D_ID)\n" )
@@ -272,7 +260,7 @@ def rc_to_colmap(rc_path, out_path, create_colmap=False, target_width=-1):
             # to sibr internal
             br = np.matrix(cam.rotation).transpose()
             t = -np.matmul(br , np.matrix([cam.translation[0], cam.translation[1], cam.translation[2]]).transpose())
-         
+
             # sibr save to colmap
             br = np.matmul(br, np.matrix([[1, 0, 0], [0, -1, 0], [0, 0, -1]]))
             br = br.transpose()
@@ -309,7 +297,7 @@ def rc_to_colmap(rc_path, out_path, create_colmap=False, target_width=-1):
 
     print("Creating ", fname)
     camera_id = 1
-    with open(fname, 'w') as outfile:
+    with open(fname, "w") as outfile:
         num_points = len(input_bundle.list_of_feature_points)
 #  FIX mean_track_length = sum((len(pt.image_ids) for _, pt in points3D.items()))/len(points3D)
         mean_track_length = 10 # 10 is a placeholder value
@@ -320,16 +308,15 @@ def rc_to_colmap(rc_path, out_path, create_colmap=False, target_width=-1):
             # error set to 0.1 for all
             outfile.write(str(p.id+1)+ " " + str(p.position[0]) + " " + str(p.position[1]) + " " + str(p.position[2]) + " " + str( p.color[0])+  " " + str( p.color[1])+  " " + str( p.color[2])+ " 0.1")
             for v in p.view_list:
-#                print("Cam id ", v[0], " P= ", p.id+1 , " p2dind " , p.point2d_index )
                 outfile.write(" " + str(v[0]+1)+ " " + str(p.point2d_index[v[0]])  )
             outfile.write("\n")
 
 
     if create_colmap:
         fname = os.path.join(stereo_stereo_dir, "fusion.cfg")
-        outfile_fusion = open(fname, 'w') 
+        outfile_fusion = open(fname, "w")
         fname = os.path.join(stereo_stereo_dir, "patch-match.cfg")
-        outfile_patchmatch = open(fname, 'w') 
+        outfile_patchmatch = open(fname, "w")
         outdir = os.path.join(stereo_stereo_dir, "normal_maps")
         if not os.path.exists(outdir):
             os.makedirs(outdir)
@@ -342,10 +329,9 @@ def rc_to_colmap(rc_path, out_path, create_colmap=False, target_width=-1):
 
     # copy images
     for fname in os.listdir(rc_path):
-        if fname.endswith(".jpg") or fname.endswith(".JPG") or fname.endswith(".png") or fname.endswith(".PNG") :
+        if fname.endswith((".jpg", ".JPG", ".png", ".PNG")) :
             src_image_fname = os.path.join(rc_path, fname)
             dst_image_fname = os.path.join(dst_image_path, os.path.basename(fname))
-#            print("Copying ", src_image_fname, "to ", dst_image_fname)
 
             if create_colmap:
                   outfile_fusion.write(fname+"\n")
@@ -358,7 +344,7 @@ def rc_to_colmap(rc_path, out_path, create_colmap=False, target_width=-1):
                 orig_width = im.shape[1]
                 orig_height = im.shape[0]
                 width = float(target_width)
-                scale = float(target_width)/ orig_width 
+                scale = float(target_width)/ orig_width
                 aspect = orig_height / orig_width
                 height = width * aspect
                 dim = (int(width), int(height))
@@ -393,14 +379,13 @@ def crop_images(path_data, path_dest):
         retcode = runCommand(getProcess("distordCrop"), [ "--path", path_data, "--ratio",  "0.3", "--avg_width", str(avg_resolution[0]), "--avg_height", str(avg_resolution[1]) ])
         if retcode.returncode != 0:
             print("Command: distordCrop failed, exiting (ARGS: ", "--path", path_data, "--ratio",  "0.3", "--avg_width", str(avg_resolution[0]), "--avg_height", str(avg_resolution[1]), ")")
-            #exit(1)
 
         # read new proposed resolution and check if images were discarded
         exclude = []
         path_to_exclude_images_txt = os.path.join(path_data, "exclude_images.txt")
         if (os.path.exists(path_to_exclude_images_txt)):
             # list of excluded cameras (one line having all the camera ids to exclude)
-            exclusion_file = open(path_to_exclude_images_txt, "r")
+            exclusion_file = open(path_to_exclude_images_txt)
             line = exclusion_file.readline()
             tokens = line.split()
 
@@ -436,7 +421,7 @@ def crop_images(path_data, path_dest):
     if not os.path.exists(path_dest):
         os.makedirs(path_dest)
 
-    
+
     path_to_output_bundle = os.path.join (path_dest, "bundle.out")
     # write bundle file in output cameras folder
     new_width = None
@@ -447,7 +432,7 @@ def crop_images(path_data, path_dest):
     retcode = runCommand(getProcess("cropFromCenter"), [ "--inputFile", path_to_transform_list_txt, "--outputPath", path_dest, "--avgResolution", str(avg_resolution[0]), str(avg_resolution[1]), "--cropResolution", str(proposed_res[0]), str(proposed_res[1]) ])
     if retcode.returncode != 0:
         print("Command: cropFromCenter failed, exiting (ARGS:", "--inputFile", path_to_transform_list_txt, "--outputPath", path_dest, "--avgResolution", str(avg_resolution[0]), str(avg_resolution[1]), "--cropResolution", str(proposed_res[0]), str(proposed_res[1]))
-        exit(1)
+        sys.exit(1)
 
 
 def fix_video_only(path):
@@ -458,11 +443,11 @@ def fix_video_only(path):
     files = os.listdir(train_dir)
     if len(files) == 1: # empty bundle file
         shutil.move(train_dir, train_dir+"_save")
-        print("MOVING {} to {}".format(test_dir, train_dir))
+        print(f"MOVING {test_dir} to {train_dir}")
         shutil.move(test_dir, train_dir)
     else:
         print("FATAL ERROR: trying to overwrite existing train images")
-        exit(1)
+        sys.exit(1)
 
 def car_data_process(path):
     # Contains: CAM_{BACK,FRONT}[_]{LEFT, RIGHT}
@@ -477,12 +462,10 @@ def car_data_process(path):
     # read all the sets of cameras
 
     dirlist = [ "CAM_BACK", "CAM_BACK_LEFT", "CAM_BACK_RIGHT", "CAM_FRONT", "CAM_FRONT_LEFT", "CAM_FRONT_RIGHT" ]
-    imlists = {}
     global_im_counter = 0
-    
+
     for dirname in dirlist:
         campath = os.path.join(path, dirname)
-        first = True
 # basic version
         for filename in os.listdir(campath):
             shutil.copyfile(os.path.join(campath, filename), os.path.join(imagespath, "{:06d}".format(global_im_counter)+".jpg"))
@@ -501,26 +484,26 @@ def car_data_process(path):
 
 #                print("Adding ", filename , " to list " , dirname)
     for i in range(len(imlists["CAM_BACK"])):
-        imname = imlists[ "CAM_BACK_LEFT"][i] 
+        imname = imlists[ "CAM_BACK_LEFT"][i]
         shutil.copyfile(os.path.join(path, os.path.join( "CAM_BACK_LEFT", imname)), os.path.join(imagespath, "{:06d}".format(global_im_counter)+".jpg"))
         global_im_counter += 1
-        imname = imlists[ "CAM_FRONT_LEFT"][i] 
+        imname = imlists[ "CAM_FRONT_LEFT"][i]
         shutil.copyfile(os.path.join(path, os.path.join( "CAM_FRONT_LEFT", imname)), os.path.join(imagespath, "{:06d}".format(global_im_counter)+".jpg"))
         global_im_counter += 1
         if i > 2:
-            imname = imlists[ "CAM_FRONT"][i-2] 
+            imname = imlists[ "CAM_FRONT"][i-2]
             shutil.copyfile(os.path.join(path, os.path.join( "CAM_FRONT", imname)), os.path.join(imagespath, "{:06d}".format(global_im_counter)+".jpg"))
             global_im_counter += 1
 
     for i in range(len(imlists["CAM_BACK"])):
-        imname = imlists[ "CAM_FRONT_RIGHT"][i] 
+        imname = imlists[ "CAM_FRONT_RIGHT"][i]
         shutil.copyfile(os.path.join(path, os.path.join( "CAM_FRONT_RIGHT", imname)), os.path.join(imagespath, "{:06d}".format(global_im_counter)+ ".jpg"))
         global_im_counter += 1
-        imname = imlists[ "CAM_BACK_RIGHT"][i] 
+        imname = imlists[ "CAM_BACK_RIGHT"][i]
         shutil.copyfile(os.path.join(path, os.path.join( "CAM_BACK_RIGHT", imname)), os.path.join(imagespath, "{:06d}".format(global_im_counter)+ ".jpg"))
         global_im_counter += 1
         if i < len(imlists["CAM_BACK"])-2:
-            imname = imlists[ "CAM_BACK"][i+2] 
+            imname = imlists[ "CAM_BACK"][i+2]
             shutil.copyfile(os.path.join(path, os.path.join( "CAM_BACK", imname)), os.path.join(imagespath, "{:06d}".format(global_im_counter)+ ".jpg"))
             global_im_counter += 1
 """

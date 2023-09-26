@@ -1,10 +1,10 @@
 # Copyright (C) 2020, Inria
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
-# 
-# This software is free for non-commercial, research and evaluation use 
+#
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
-# 
+#
 # For inquiries contact sibr@inria.fr and/or George.Drettakis@inria.fr
 
 
@@ -14,8 +14,10 @@
 # while ones declared inside __init__ belong to the object
 
 import os
-import get_image_size   # way faster than loading images in opencv and lightweighted (not as the case with python's pillow)
 from enum import IntEnum
+
+import get_image_size  # way faster than loading images in opencv and lightweighted (not as the case with python's pillow)
+
 
 class InputImage:
 
@@ -27,9 +29,7 @@ class InputImage:
         self.resolution = [width, height]
 
     def __str__(self):
-        return "{0}\t{1}\t{2}".format(self.path, self.resolution[0], self.resolution[1])
-        # return str(self.filename) + delimiter + str(self.resolution[0]) + delimiter + str(self.resolution[1])
-        #return "{0}\t{1}\t{2}".format(self.filename, self.resolution[0], self.resolution[1])
+        return f"{self.path}\t{self.resolution[0]}\t{self.resolution[1]}"
 
 
 class BundleFeaturePointLine (IntEnum):
@@ -60,11 +60,11 @@ class BundleCamera:
         self.focal_length = self.focal_length * factor
 
     def __str__(self):
-        first_line      = "{0:g} {1:g} {2:g}\n".format(self.focal_length, self.radial_dist[0], self.radial_dist[1])
-        second_line     = "{0:g} {1:g} {2:g}\n".format(self.rotation[0][0], self.rotation[0][1], self.rotation[0][2])
-        third_line      = "{0:g} {1:g} {2:g}\n".format(self.rotation[1][0], self.rotation[1][1], self.rotation[1][2])
-        fourth_line     = "{0:g} {1:g} {2:g}\n".format(self.rotation[2][0], self.rotation[2][1], self.rotation[2][2])
-        fifth_line      = "{0:g} {1:g} {2:g}".format(self.translation[0], self.translation[1], self.translation[2])
+        first_line      = "{:g} {:g} {:g}\n".format(self.focal_length, self.radial_dist[0], self.radial_dist[1])
+        second_line     = "{:g} {:g} {:g}\n".format(self.rotation[0][0], self.rotation[0][1], self.rotation[0][2])
+        third_line      = "{:g} {:g} {:g}\n".format(self.rotation[1][0], self.rotation[1][1], self.rotation[1][2])
+        fourth_line     = "{:g} {:g} {:g}\n".format(self.rotation[2][0], self.rotation[2][1], self.rotation[2][2])
+        fifth_line      = "{:g} {:g} {:g}".format(self.translation[0], self.translation[1], self.translation[2])
         return first_line + second_line + third_line + fourth_line + fifth_line
 
 
@@ -90,30 +90,29 @@ class BundleFeaturePoint:
         # fix all subsequent indices
 
         newlist = []
-        nr1 = len(self.view_list)
+        len(self.view_list)
         change = False
         for vl_item in self.view_list:
             newitem = list(vl_item)
             if (vl_item[0] > cam_id):
-#                change = True
                 newitem[0] = newitem[0]-1
                 newlist.append(tuple(newitem))
             else:
                 newlist.append(vl_item)
 
         if change:
-            print("NEW : {}\n".format( newlist ))
-            print("OLD : {}\n".format( self.view_list ))
+            print(f"NEW : {newlist}\n")
+            print(f"OLD : {self.view_list}\n")
 
         self.view_list = newlist
 
     def __str__(self):
-        first_line      = "{0:g} {1:g} {2:g}\n".format(self.position[0], self.position[1], self.position[2])
-        second_line     = "{0} {1} {2}\n".format(self.color[0], self.color[1], self.color[2])
+        first_line      = "{:g} {:g} {:g}\n".format(self.position[0], self.position[1], self.position[2])
+        second_line     = f"{self.color[0]} {self.color[1]} {self.color[2]}\n"
         third_line      = str(len(self.view_list)) + " "
         cam_index = 0
         for view_info in self.view_list:
-            third_line = third_line + "{0:g} {1:g} {2:g} {3:g}".format(view_info[0], view_info[1], view_info[2], view_info[3])
+            third_line = third_line + "{:g} {:g} {:g} {:g}".format(view_info[0], view_info[1], view_info[2], view_info[3])
             if (cam_index != len(self.view_list) - 1):
                 third_line = third_line + " "
             cam_index = cam_index + 1
@@ -125,7 +124,7 @@ class Bundle:
 
     def __init__(self, path_to_bundle):
         # read bundle file
-        input_file = open(path_to_bundle, "r")
+        input_file = open(path_to_bundle)
 
         # first line is the header containing bundle version
         self.header             = input_file.readline().strip()
@@ -159,7 +158,6 @@ class Bundle:
 
             feature_point_position  = None
             feature_point_color     = None
-            feature_point_view_list = None
             feature_point_id        = 0
 
             for line in input_file:
@@ -182,7 +180,7 @@ class Bundle:
 
                     # add feature point to the list of feature points contained in the bundle
                     feature_point = BundleFeaturePoint(feature_point_id, feature_point_position, feature_point_color, list_of_view_info)
-                    
+
                     # for colmap conversion
                     for v in list_of_view_info:
                         if v[0] >= len(self.list_of_cameras):
@@ -242,7 +240,7 @@ class Bundle:
     def generate_list_of_images_file (self, path_to_output):
         output_file = open (path_to_output, "w")
         for image in self.list_of_input_images:
-            output_file.write(str(image) + '\n')
+            output_file.write(str(image) + "\n")
         output_file.close()
 
 
@@ -272,30 +270,23 @@ class Bundle:
         # update nr_cameras attribute
         self.nr_cameras = len (self.list_of_cameras)
 
-    def save (self, path_to_output_file, new_res=[]):
+    def save (self, path_to_output_file, new_res=None):
+        if new_res is None:
+            new_res = []
         output_file = open(path_to_output_file, "w")
 
-        output_file.write(self.header + '\n')
-        output_file.write(str(self.nr_cameras) + " " + str(self.nr_feature_points) + '\n')
+        output_file.write(self.header + "\n")
+        output_file.write(str(self.nr_cameras) + " " + str(self.nr_feature_points) + "\n")
 
         if new_res == []:
             for cam in self.list_of_cameras:
-                output_file.write(str(cam) + '\n')
+                output_file.write(str(cam) + "\n")
         else:
             # not needed TODO: verify
-            #indx = 0
             for cam in self.list_of_cameras:
-                #im = self.list_of_input_images[indx]
-                #old_w = im.resolution[0]
-                #old_h = im.resolution[1]
-                #new_focal = cam.focal_length*(min(old_h/new_res[1], old_w/new_res[0]))
-                #print("Old : ", cam.focal_length, " New : " , new_focal)
-                #cam.focal_length = new_focal
-                output_file.write(str(cam) + '\n')
-                #indx = indx + 1
-            
+                output_file.write(str(cam) + "\n")
+
         for feature_point in self.list_of_feature_points:
-#            print("Writing ", len(feature_point.view_list) , " FEATURE POINTS " )
             if len(feature_point.view_list)> 0:
-                output_file.write(str(feature_point) + '\n')
+                output_file.write(str(feature_point) + "\n")
 

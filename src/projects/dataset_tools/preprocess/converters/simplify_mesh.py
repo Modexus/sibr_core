@@ -1,10 +1,10 @@
 # Copyright (C) 2020, Inria
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
-# 
-# This software is free for non-commercial, research and evaluation use 
+#
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
-# 
+#
 # For inquiries contact sibr@inria.fr and/or George.Drettakis@inria.fr
 
 
@@ -26,32 +26,34 @@ Usage: python simplify_mesh.py --inputMesh <the mesh to simplify>
 
 """
 
-import os, sys
 import argparse
-from utils.commands import runCommand, getMeshlabServer
+import os
+
+from utils.commands import getMeshlabServer, runCommand
 from utils.paths import getMeshlabPath
 
+
 def simplifyMesh(inputMesh, outputMesh, meshsize="", meshlabPath = getMeshlabPath()):
-    mlxFileEnd = 'meshlab/simplify.mlx'
+    mlxFileEnd = "meshlab/simplify.mlx"
 
     if( meshsize != "" ):
         if( meshsize == "200"):
-            mlxFileEnd = 'meshlab/simplify200.mlx'
+            mlxFileEnd = "meshlab/simplify200.mlx"
         elif( meshsize == "250"):
-            mlxFileEnd = 'meshlab/simplify250.mlx'
+            mlxFileEnd = "meshlab/simplify250.mlx"
         elif( meshsize == "300"):
-            mlxFileEnd = 'meshlab/simplify300.mlx'
+            mlxFileEnd = "meshlab/simplify300.mlx"
         elif( meshsize == "350"):
-            mlxFileEnd = 'meshlab/simplify350.mlx'
+            mlxFileEnd = "meshlab/simplify350.mlx"
         elif( meshsize == "400"):
-            mlxFileEnd = 'meshlab/simplify400.mlx'
+            mlxFileEnd = "meshlab/simplify400.mlx"
 
 
     mlxFile = os.path.abspath(os.path.join(os.path.abspath(os.path.dirname(__file__)), mlxFileEnd))
 
-    return runCommand(getMeshlabServer(meshlabPath), ['-i', inputMesh,
-                                                      '-o', outputMesh,
-                                                      '-s', mlxFile])
+    return runCommand(getMeshlabServer(meshlabPath), ["-i", inputMesh,
+                                                      "-o", outputMesh,
+                                                      "-s", mlxFile])
 
 def main():
     parser = argparse.ArgumentParser()
@@ -64,9 +66,8 @@ def main():
 
     args = vars(parser.parse_args())
 
-    return simplifyMesh(args['inputMesh'], args['outputMesh'], args['meshsize'], args['meshlabPath'])
+    return simplifyMesh(args["inputMesh"], args["outputMesh"], args["meshsize"], args["meshlabPath"])
 
-#    sys.exit(0)
 
 if __name__ == "__main__":
     main()
